@@ -188,6 +188,9 @@ async function executeNode(
         })
 
         if (outputFormat === "webpage") {
+          // Strip markdown code block markers from LLM response
+          let cleanText = response.text.replace(/^```html\s*/i, "").replace(/\s*```$/i, "").trim()
+          
           const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -224,11 +227,11 @@ async function executeNode(
 </head>
 <body>
   <div class="container">
-    ${response.text}
+    ${cleanText}
   </div>
 </body>
 </html>`
-          return { output: { html, text: response.text, model, outputFormat: "webpage" } }
+          return { output: { html, text: cleanText, model, outputFormat: "webpage" } }
         }
 
         return { output: { text: response.text, model } }
