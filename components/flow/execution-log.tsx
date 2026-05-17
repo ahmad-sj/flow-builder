@@ -32,7 +32,7 @@ const statusIcons = {
 export function ExecutionLog({ steps, visible, onToggle }: ExecutionLogProps) {
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set())
 
-  const downloadedPdfs = useRef<Set<string>>(new Set())
+const downloadedPdfs = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     steps.forEach((step) => {
@@ -45,10 +45,30 @@ export function ExecutionLog({ steps, visible, onToggle }: ExecutionLogProps) {
     })
   }, [steps])
 
-const handlePdfDownload = async (step: ExecutionStep) => {
+  const handlePdfDownload = async (step: ExecutionStep) => {
     const output = step.output as { filename?: string; data?: unknown }
     const filename = output?.filename || "output.pdf"
     const data = output?.data
+    
+    // Check if data is already HTML content (from llm_call webpage output)
+    if (typeof data === "string" && data.trim().startsWith("<!DOCTYPE html") || data?.trim().startsWith("<html")) {
+      // Directly open print window for HTML content
+      const printWindow = window.open("", "_blank")
+      if (printWindow) {
+        printWindow.document.write(data)
+        printWindow.document.close()
+        // Trigger print after a brief delay to ensure content is rendered
+        setTimeout(() => {
+          try {
+            printWindow.print()
+          } catch (e) {
+            // Print blocked - user can manually print
+          }
+        }, 500)
+      }
+      toast.info("Print dialog opened - save as PDF")
+      return
+    }
     
     // Safe stringify that handles circular references
     const safeStringify = (obj: unknown, indent = 2) => {
@@ -64,29 +84,21 @@ const handlePdfDownload = async (step: ExecutionStep) => {
       }, indent)
     }
     
-    // Check if data is an HTML string (from llm_call webpage output)
-    let htmlContent: string
-    if (typeof data === "string") {
-      // Data is already HTML content
-      htmlContent = data
-    } else {
-      // Wrap object data in HTML template
-      htmlContent = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>${filename}</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              .content { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow: auto; }
-            </style>
-          </head>
-          <body>
-            <div class="content">${safeStringify(data)}</div>
-          </body>
-        </html>
-      `
-    }
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${filename}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .content { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow: auto; }
+          </style>
+        </head>
+        <body>
+          <div class="content">${safeStringify(data)}</div>
+        </body>
+      </html>
+    `
     
     try {
       const res = await fetch("/api/pdf/generate", {
@@ -98,11 +110,20 @@ const handlePdfDownload = async (step: ExecutionStep) => {
       if (!res.ok) {
         const errorData = await res.json().catch(() => null)
         if (errorData?.html) {
-          // API returned HTML for client-side PDF generation
+          // API returned HTML for client-side PDF generation - open print dialog
           const printWindow = window.open("", "_blank")
-          printWindow?.document.write(errorData.html)
-          printWindow?.document.close()
-          toast.info("Opened in new window - use Print > Save as PDF")
+          if (printWindow) {
+            printWindow.document.write(errorData.html)
+            printWindow.document.close()
+            setTimeout(() => {
+              try {
+                printWindow.print()
+              } catch (e) {
+                // Print blocked - user can manually print
+              }
+            }, 500)
+          }
+          toast.info("Print dialog opened - save as PDF")
           return
         }
         throw new Error("PDF generation failed")
@@ -114,9 +135,18 @@ const handlePdfDownload = async (step: ExecutionStep) => {
         const errorData = await res.json()
         if (errorData?.html) {
           const printWindow = window.open("", "_blank")
-          printWindow?.document.write(errorData.html)
-          printWindow?.document.close()
-          toast.info("Opened in new window - use Print > Save as PDF")
+          if (printWindow) {
+            printWindow.document.write(errorData.html)
+            printWindow.document.close()
+            setTimeout(() => {
+              try {
+                printWindow.print()
+              } catch (e) {
+                // Print blocked - user can manually print
+              }
+            }, 500)
+          }
+          toast.info("Print dialog opened - save as PDF")
           return
         }
       }
@@ -156,34 +186,41 @@ const handlePdfDownload = async (step: ExecutionStep) => {
     if (step.output !== undefined) {
       const output = step.output as Record<string, unknown> | undefined
       
-      if (step.nodeType === "llm_call" && output?.outputFormat === "webpage") {
-        const html = output?.html as string | undefined
-        const text = output?.text as string | undefined
-        return (
-          <div className="space-y-2">
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-6 text-[10px]"
-                onClick={() => {
-                  const printWindow = window.open("", "_blank")
-                  if (printWindow) {
-                    printWindow.document.write(html || "")
-                    printWindow.document.close()
-                  }
-                }}
-              >
-                <ExternalLink className="h-3 w-3 mr-1" />
-                View Report
-              </Button>
+if (step.nodeType === "llm_call" && output?.outputFormat === "webpage") {
+          const html = output?.html as string | undefined
+          const text = output?.text as string | undefined
+          return (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-[10px]"
+                  onClick={() => {
+                    const printWindow = window.open("", "_blank")
+                    if (printWindow) {
+                      printWindow.document.write(html || "")
+                      printWindow.document.close()
+                      setTimeout(() => {
+                        try {
+                          printWindow.print()
+                        } catch (e) {
+                          // Print blocked
+                        }
+                      }, 500)
+                    }
+                  }}
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  View Report
+                </Button>
+              </div>
+              <pre className="max-h-32 overflow-auto text-[11px] text-muted-foreground whitespace-pre-wrap rounded bg-muted/50 p-2">
+                {text || "Report generated"}
+              </pre>
             </div>
-            <pre className="max-h-32 overflow-auto text-[11px] text-muted-foreground whitespace-pre-wrap rounded bg-muted/50 p-2">
-              {text || "Report generated"}
-            </pre>
-          </div>
-        )
-      }
+          )
+        }
       
       if (step.nodeType === "log") {
         const logged = output?.logged as string | undefined
