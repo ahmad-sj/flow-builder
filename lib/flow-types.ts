@@ -40,6 +40,7 @@ export interface LLMCallNodeData extends BaseNodeData {
   systemPrompt?: string
   temperature?: number
   maxTokens?: number
+  outputFormat?: 'text' | 'webpage'
 }
 
 export interface WebhookNodeData extends BaseNodeData {
@@ -133,6 +134,7 @@ export const DEFAULT_NODE_DATA: Record<NodeType, Partial<FlowNodeData>> = {
     model: 'deepseek-v4-flash',
     prompt: '',
     temperature: 0.7,
+    outputFormat: 'text',
   } as LLMCallNodeData,
   webhook: {
     label: 'Webhook',

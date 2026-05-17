@@ -1,6 +1,6 @@
 "use client"
 
-import { CheckCircle2, XCircle, Loader2, Clock, ChevronDown, ChevronUp, FileDown } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, Clock, ChevronDown, ChevronUp, FileDown, ExternalLink } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -45,10 +45,10 @@ export function ExecutionLog({ steps, visible, onToggle }: ExecutionLogProps) {
     })
   }, [steps])
 
-  const handlePdfDownload = async (step: ExecutionStep) => {
+const handlePdfDownload = async (step: ExecutionStep) => {
     const output = step.output as { filename?: string; data?: unknown }
     const filename = output?.filename || "output.pdf"
-    const data = output?.data || {}
+    const data = output?.data
     
     // Safe stringify that handles circular references
     const safeStringify = (obj: unknown, indent = 2) => {
@@ -64,23 +64,31 @@ export function ExecutionLog({ steps, visible, onToggle }: ExecutionLogProps) {
       }, indent)
     }
     
-    try {
-      const htmlContent = `
+    // Check if data is an HTML string (from llm_call webpage output)
+    let htmlContent: string
+    if (typeof data === "string") {
+      // Data is already HTML content
+      htmlContent = data
+    } else {
+      // Wrap object data in HTML template
+      htmlContent = `
         <!DOCTYPE html>
         <html>
           <head>
             <title>${filename}</title>
             <style>
               body { font-family: Arial, sans-serif; padding: 20px; }
-              pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow: auto; }
+              .content { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow: auto; }
             </style>
           </head>
           <body>
-            <pre>${safeStringify(data)}</pre>
+            <div class="content">${safeStringify(data)}</div>
           </body>
         </html>
       `
-
+    }
+    
+    try {
       const res = await fetch("/api/pdf/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -147,6 +155,35 @@ export function ExecutionLog({ steps, visible, onToggle }: ExecutionLogProps) {
     }
     if (step.output !== undefined) {
       const output = step.output as Record<string, unknown> | undefined
+      
+      if (step.nodeType === "llm_call" && output?.outputFormat === "webpage") {
+        const html = output?.html as string | undefined
+        const text = output?.text as string | undefined
+        return (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 text-[10px]"
+                onClick={() => {
+                  const printWindow = window.open("", "_blank")
+                  if (printWindow) {
+                    printWindow.document.write(html || "")
+                    printWindow.document.close()
+                  }
+                }}
+              >
+                <ExternalLink className="h-3 w-3 mr-1" />
+                View Report
+              </Button>
+            </div>
+            <pre className="max-h-32 overflow-auto text-[11px] text-muted-foreground whitespace-pre-wrap rounded bg-muted/50 p-2">
+              {text || "Report generated"}
+            </pre>
+          </div>
+        )
+      }
       
       if (step.nodeType === "log") {
         const logged = output?.logged as string | undefined

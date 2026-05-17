@@ -227,6 +227,21 @@ function renderNodeSpecificFields(
             </Select>
           </div>
           <div className="space-y-2">
+            <Label htmlFor="outputFormat">Output Format</Label>
+            <Select
+              value={(node.data.outputFormat as string) || 'text'}
+              onValueChange={(value) => handleChange('outputFormat', value)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="text">Plain Text</SelectItem>
+                <SelectItem value="webpage">HTML Web Page (Clean Report)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="systemPrompt">System Prompt</Label>
             <Textarea
               id="systemPrompt"

@@ -1,20 +1,16 @@
-import {
-  streamText,
-  convertToModelMessages,
-  tool,
-  stepCountIs,
-} from "ai"
-import { deepseek } from "@ai-sdk/deepseek"
-import { z } from "zod"
-import { auth } from "@/lib/auth"
-import { sql } from "@/lib/db"
+import { streamText, convertToModelMessages, tool, stepCountIs } from "ai";
+import { deepseek } from "@ai-sdk/deepseek";
+import { z } from "zod";
+import { auth } from "@/lib/auth";
+import { sql } from "@/lib/db";
 
-export const maxDuration = 60
+export const maxDuration = 60;
 
 function buildFlowTools(userId: string) {
   return {
     createFlow: tool({
-      description: "Create a new workflow flow with the given name and description",
+      description:
+        "Create a new workflow flow with the given name and description",
       inputSchema: z.object({
         name: z.string().describe("Name of the flow"),
         description: z.string().nullable().describe("Description of the flow"),
@@ -24,8 +20,12 @@ function buildFlowTools(userId: string) {
           INSERT INTO flows (user_id, name, description)
           VALUES (${userId}, ${name}, ${description || ""})
           RETURNING id, name
-        `
-        return { flowId: flows[0].id, name: flows[0].name, message: `Flow "${name}" created successfully.` }
+        `;
+        return {
+          flowId: flows[0].id,
+          name: flows[0].name,
+          message: `Flow "${name}" created successfully.`,
+        };
       },
     }),
 
@@ -37,36 +37,63 @@ function buildFlowTools(userId: string) {
           SELECT id, name, description, is_active, created_at
           FROM flows WHERE user_id = ${userId}
           ORDER BY updated_at DESC
-        `
-        return { flows, count: flows.length }
+        `;
+        return { flows, count: flows.length };
       },
     }),
 
     addNode: tool({
-      description: "Add a new node to the current flow being edited. Node types: trigger, http_request, code_runner, condition, llm_call, webhook, log, color, save_pdf",
+      description:
+        "Add a new node to the current flow being edited. Node types: trigger, http_request, code_runner, condition, llm_call, webhook, log, color, save_pdf",
       inputSchema: z.object({
         flowId: z.string().describe("The flow ID to add the node to"),
-        nodeType: z.enum(["trigger", "http_request", "code_runner", "condition", "llm_call", "webhook", "log", "color", "save_pdf"]),
+        nodeType: z.enum([
+          "trigger",
+          "http_request",
+          "code_runner",
+          "condition",
+          "llm_call",
+          "webhook",
+          "log",
+          "color",
+          "save_pdf",
+        ]),
         label: z.string().describe("Display label for the node"),
         positionX: z.number().describe("X position on the canvas"),
         positionY: z.number().describe("Y position on the canvas"),
-        config: z.record(z.unknown()).nullable().describe("Node config: for llm_call use {model:'deepseek-v4-flash', prompt:'...', systemPrompt:'...', temperature:0.7}. For http_request use {url:'...', method:'GET'}. For code_runner use {code:'...'}. For condition use {condition:'...'}. For webhook use {webhookUrl:'...', webhookMethod:'POST'}. For save_pdf use {filename:'output.pdf', format:'A4'}."),
+        config: z
+          .record(z.unknown())
+          .nullable()
+          .describe(
+            "Node config: for llm_call use {model:'deepseek-v4-flash', prompt:'...', systemPrompt:'...', temperature:0.7, outputFormat:'webpage' for clean HTML reports}. For http_request use {url:'...', method:'GET'}. For code_runner use {code:'...'}. For condition use {condition:'...'}. For webhook use {webhookUrl:'...', webhookMethod:'POST'}. For save_pdf use {filename:'output.pdf', format:'A4'}.",
+          ),
       }),
-      execute: async ({ flowId, nodeType, label, positionX, positionY, config }) => {
-        const flows = await sql`SELECT nodes FROM flows WHERE id = ${flowId} AND user_id = ${userId}`
-        if (flows.length === 0) return { error: "Flow not found" }
+      execute: async ({
+        flowId,
+        nodeType,
+        label,
+        positionX,
+        positionY,
+        config,
+      }) => {
+        const flows =
+          await sql`SELECT nodes FROM flows WHERE id = ${flowId} AND user_id = ${userId}`;
+        if (flows.length === 0) return { error: "Flow not found" };
 
-        const nodes = flows[0].nodes || []
+        const nodes = flows[0].nodes || [];
         const newNode = {
           id: `node_${Date.now()}`,
           type: nodeType,
           position: { x: positionX, y: positionY },
           data: { label, ...((config as Record<string, unknown>) || {}) },
-        }
-        nodes.push(newNode)
+        };
+        nodes.push(newNode);
 
-        await sql`UPDATE flows SET nodes = ${JSON.stringify(nodes)}, updated_at = NOW() WHERE id = ${flowId}`
-        return { node: newNode, message: `Added ${nodeType} node "${label}" to the flow.` }
+        await sql`UPDATE flows SET nodes = ${JSON.stringify(nodes)}, updated_at = NOW() WHERE id = ${flowId}`;
+        return {
+          node: newNode,
+          message: `Added ${nodeType} node "${label}" to the flow.`,
+        };
       },
     }),
 
@@ -76,29 +103,36 @@ function buildFlowTools(userId: string) {
         flowId: z.string().describe("The flow ID"),
         sourceNodeId: z.string().describe("Source node ID"),
         targetNodeId: z.string().describe("Target node ID"),
-        sourceHandle: z.string().optional().describe("Source handle (e.g., 'true' or 'false' for condition nodes)"),
+        sourceHandle: z
+          .string()
+          .optional()
+          .describe(
+            "Source handle (e.g., 'true' or 'false' for condition nodes)",
+          ),
       }),
       execute: async ({ flowId, sourceNodeId, targetNodeId, sourceHandle }) => {
-        const flows = await sql`SELECT edges FROM flows WHERE id = ${flowId} AND user_id = ${userId}`
-        if (flows.length === 0) return { error: "Flow not found" }
+        const flows =
+          await sql`SELECT edges FROM flows WHERE id = ${flowId} AND user_id = ${userId}`;
+        if (flows.length === 0) return { error: "Flow not found" };
 
-        const edges = flows[0].edges || []
+        const edges = flows[0].edges || [];
         const newEdge = {
           id: `edge_${Date.now()}`,
           source: sourceNodeId,
           target: targetNodeId,
           sourceHandle: sourceHandle || undefined,
           animated: true,
-        }
-        edges.push(newEdge)
+        };
+        edges.push(newEdge);
 
-        await sql`UPDATE flows SET edges = ${JSON.stringify(edges)}, updated_at = NOW() WHERE id = ${flowId}`
-        return { edge: newEdge, message: "Edge created successfully." }
+        await sql`UPDATE flows SET edges = ${JSON.stringify(edges)}, updated_at = NOW() WHERE id = ${flowId}`;
+        return { edge: newEdge, message: "Edge created successfully." };
       },
     }),
 
     getFlowDetails: tool({
-      description: "Get details of a specific flow including its nodes and edges",
+      description:
+        "Get details of a specific flow including its nodes and edges",
       inputSchema: z.object({
         flowId: z.string().describe("The flow ID to retrieve"),
       }),
@@ -106,9 +140,9 @@ function buildFlowTools(userId: string) {
         const flows = await sql`
           SELECT id, name, description, nodes, edges, is_active, created_at
           FROM flows WHERE id = ${flowId} AND user_id = ${userId}
-        `
-        if (flows.length === 0) return { error: "Flow not found" }
-        return flows[0]
+        `;
+        if (flows.length === 0) return { error: "Flow not found" };
+        return flows[0];
       },
     }),
 
@@ -117,19 +151,30 @@ function buildFlowTools(userId: string) {
       inputSchema: z.object({
         flowId: z.string().describe("The flow ID"),
         nodeId: z.string().describe("The node ID to update"),
-        config: z.record(z.unknown()).describe("New configuration data to merge with existing"),
+        config: z
+          .record(z.unknown())
+          .describe("New configuration data to merge with existing"),
       }),
       execute: async ({ flowId, nodeId, config }) => {
-        const flows = await sql`SELECT nodes FROM flows WHERE id = ${flowId} AND user_id = ${userId}`
-        if (flows.length === 0) return { error: "Flow not found" }
+        const flows =
+          await sql`SELECT nodes FROM flows WHERE id = ${flowId} AND user_id = ${userId}`;
+        if (flows.length === 0) return { error: "Flow not found" };
 
-        const nodes = flows[0].nodes || []
-        const nodeIndex = nodes.findIndex((n: { id: string }) => n.id === nodeId)
-        if (nodeIndex === -1) return { error: "Node not found" }
+        const nodes = flows[0].nodes || [];
+        const nodeIndex = nodes.findIndex(
+          (n: { id: string }) => n.id === nodeId,
+        );
+        if (nodeIndex === -1) return { error: "Node not found" };
 
-        nodes[nodeIndex].data = { ...nodes[nodeIndex].data, ...(config as Record<string, unknown>) }
-        await sql`UPDATE flows SET nodes = ${JSON.stringify(nodes)}, updated_at = NOW() WHERE id = ${flowId}`
-        return { node: nodes[nodeIndex], message: "Node updated successfully." }
+        nodes[nodeIndex].data = {
+          ...nodes[nodeIndex].data,
+          ...(config as Record<string, unknown>),
+        };
+        await sql`UPDATE flows SET nodes = ${JSON.stringify(nodes)}, updated_at = NOW() WHERE id = ${flowId}`;
+        return {
+          node: nodes[nodeIndex],
+          message: "Node updated successfully.",
+        };
       },
     }),
 
@@ -140,16 +185,22 @@ function buildFlowTools(userId: string) {
         nodeId: z.string().describe("The node ID to delete"),
       }),
       execute: async ({ flowId, nodeId }) => {
-        const flows = await sql`SELECT nodes, edges FROM flows WHERE id = ${flowId} AND user_id = ${userId}`
-        if (flows.length === 0) return { error: "Flow not found" }
+        const flows =
+          await sql`SELECT nodes, edges FROM flows WHERE id = ${flowId} AND user_id = ${userId}`;
+        if (flows.length === 0) return { error: "Flow not found" };
 
-        const nodes = (flows[0].nodes || []).filter((n: { id: string }) => n.id !== nodeId)
+        const nodes = (flows[0].nodes || []).filter(
+          (n: { id: string }) => n.id !== nodeId,
+        );
         const edges = (flows[0].edges || []).filter(
-          (e: { source: string; target: string }) => e.source !== nodeId && e.target !== nodeId
-        )
+          (e: { source: string; target: string }) =>
+            e.source !== nodeId && e.target !== nodeId,
+        );
 
-        await sql`UPDATE flows SET nodes = ${JSON.stringify(nodes)}, edges = ${JSON.stringify(edges)}, updated_at = NOW() WHERE id = ${flowId}`
-        return { message: `Node ${nodeId} and its connected edges have been deleted.` }
+        await sql`UPDATE flows SET nodes = ${JSON.stringify(nodes)}, edges = ${JSON.stringify(edges)}, updated_at = NOW() WHERE id = ${flowId}`;
+        return {
+          message: `Node ${nodeId} and its connected edges have been deleted.`,
+        };
       },
     }),
 
@@ -159,50 +210,57 @@ function buildFlowTools(userId: string) {
         flowId: z.string().describe("The flow ID to clear"),
       }),
       execute: async ({ flowId }) => {
-        const flows = await sql`SELECT id FROM flows WHERE id = ${flowId} AND user_id = ${userId}`
-        if (flows.length === 0) return { error: "Flow not found" }
+        const flows =
+          await sql`SELECT id FROM flows WHERE id = ${flowId} AND user_id = ${userId}`;
+        if (flows.length === 0) return { error: "Flow not found" };
 
-        await sql`UPDATE flows SET nodes = '[]', edges = '[]', updated_at = NOW() WHERE id = ${flowId}`
-        return { message: "Flow has been cleared. All nodes and edges have been removed." }
+        await sql`UPDATE flows SET nodes = '[]', edges = '[]', updated_at = NOW() WHERE id = ${flowId}`;
+        return {
+          message:
+            "Flow has been cleared. All nodes and edges have been removed.",
+        };
       },
     }),
 
     executeFlow: tool({
-      description: "Execute a flow by its ID. Returns a summary of the execution.",
+      description:
+        "Execute a flow by its ID. Returns a summary of the execution.",
       inputSchema: z.object({
         flowId: z.string().describe("The flow ID to execute"),
       }),
       execute: async ({ flowId }) => {
         const flows = await sql`
           SELECT nodes, edges FROM flows WHERE id = ${flowId} AND user_id = ${userId}
-        `
-        if (flows.length === 0) return { error: "Flow not found" }
+        `;
+        if (flows.length === 0) return { error: "Flow not found" };
 
-        const { executeFlow: runFlow } = await import("@/lib/flow-engine")
+        const { executeFlow: runFlow } = await import("@/lib/flow-engine");
 
-        const results: unknown[] = []
+        const results: unknown[] = [];
         await runFlow(flows[0].nodes, flows[0].edges, (data) => {
-          results.push(data)
-        })
+          results.push(data);
+        });
 
-        return { results, message: "Flow execution completed." }
+        return { results, message: "Flow execution completed." };
       },
     }),
-  }
+  };
 }
 
 export async function POST(req: Request) {
-  const session = await auth()
+  const session = await auth();
   if (!session?.user?.id) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+    });
   }
 
-  const { messages, flowId, currentNodes, currentEdges } = await req.json()
+  const { messages, flowId, currentNodes, currentEdges } = await req.json();
 
-  const userId = session.user.id
+  const userId = session.user.id;
 
   // Build tools with userId closure
-  const tools = buildFlowTools(userId)
+  const tools = buildFlowTools(userId);
 
   const flowContext = flowId
     ? `The user is currently editing flow with ID "${flowId}".
@@ -211,7 +269,7 @@ Current edges: ${JSON.stringify(currentEdges || [])}
 
 CRITICAL: You are INSIDE this flow. You must use "addNode" and "addEdge" with this exact flowId.
 NEVER call createFlow — the flow already exists. Always modify the current flow.`
-    : `No flow is currently open. If the user asks to create nodes or edges, call createFlow first to create a new flow, then use the returned flowId.`
+    : `No flow is currently open. If the user asks to create nodes or edges, call createFlow first to create a new flow, then use the returned flowId.`;
 
   const result = streamText({
     model: deepseek("deepseek-chat"),
@@ -239,6 +297,7 @@ CRITICAL RULES:
 8. For log nodes, output shows data in execution log popup.
 9. For color nodes, output shows data with random color in execution log.
 10. For save_pdf nodes, output generates a downloadable PDF file.
+11. before giving input to save_pdf nodes, make sure the input doesn't contain charaters that are used for text formatting.
 
 When building flows, always follow this sequence:
 1. addNode(trigger) at (100, 200)
@@ -252,7 +311,7 @@ Always confirm what you've done after each action and suggest logical next steps
     messages: await convertToModelMessages(messages),
     tools,
     stopWhen: stepCountIs(10),
-  })
+  });
 
-  return result.toUIMessageStreamResponse()
+  return result.toUIMessageStreamResponse();
 }

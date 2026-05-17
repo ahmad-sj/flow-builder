@@ -175,6 +175,7 @@ async function executeNode(
       const prompt = resolveTemplate(data.prompt || "", context)
       const model = data.model || "deepseek-v4-flash"
       const systemPrompt = data.systemPrompt || ""
+      const outputFormat = data.outputFormat || "text"
 
       try {
         const { generateText } = await import("ai")
@@ -185,6 +186,50 @@ async function executeNode(
           system: systemPrompt || undefined,
           prompt: prompt,
         })
+
+        if (outputFormat === "webpage") {
+          const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.7; 
+      color: #1a1a1a; 
+      background: #fafafa;
+      padding: 40px 20px;
+    }
+    .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    h1, h2, h3 { color: #0a0a0a; margin: 24px 0 12px; font-weight: 600; }
+    h1 { font-size: 2.25rem; border-bottom: 2px solid #0070f3; padding-bottom: 12px; }
+    h2 { font-size: 1.5rem; border-bottom: 1px solid #eaeaea; padding-bottom: 8px; }
+    h3 { font-size: 1.25rem; }
+    p { margin: 12px 0; }
+    ul, ol { margin: 12px 0; padding-left: 24px; }
+    li { margin: 8px 0; }
+    code { background: #f5f5f5; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; }
+    pre { background: #1e1e1e; color: #e8e8e8; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 16px 0; }
+    pre code { background: none; padding: 0; }
+    blockquote { border-left: 4px solid #0070f3; padding-left: 16px; margin: 16px 0; color: #555; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { border: 1px solid #eaeaea; padding: 12px; text-align: left; }
+    th { background: #f8f8f8; font-weight: 600; }
+    .meta { font-size: 0.85rem; color: #666; margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    ${response.text}
+  </div>
+</body>
+</html>`
+          return { output: { html, text: response.text, model, outputFormat: "webpage" } }
+        }
 
         return { output: { text: response.text, model } }
       } catch (err) {
@@ -261,25 +306,28 @@ async function executeNode(
         ? context.nodeOutputs[inEdges[0].source]
         : null
       
-      // Use a safe stringify to handle circular references
-      const safeStringify = (obj: unknown) => {
-        const seen = new WeakSet()
-        return JSON.parse(JSON.stringify(obj, (key, value) => {
-          if (typeof value === "object" && value !== null) {
-            if (seen.has(value)) return "[Circular]"
-            seen.add(value)
-            if (value instanceof Error) {
-              return { name: value.name, message: value.message }
-            }
+      // Extract content for PDF
+      let dataToSave: string
+      if (previousOutput !== undefined && previousOutput !== null) {
+        const output = previousOutput as Record<string, unknown>
+        // For llm_call with webpage output, extract just the html content
+        if (output.outputFormat === "webpage") {
+          if (typeof output.html === "string") {
+            // HTML is already a string, use it directly (no need to unescape - JSON preserves it)
+            dataToSave = output.html
+          } else {
+            dataToSave = typeof output.text === "string" ? output.text : JSON.stringify(previousOutput)
           }
-          return value
-        }))
+        } else if (typeof output.text === "string") {
+          dataToSave = output.text
+        } else if (typeof output === "string") {
+          dataToSave = previousOutput as string
+        } else {
+          dataToSave = JSON.stringify(previousOutput, null, 2)
+        }
+      } else {
+        dataToSave = JSON.stringify(context.nodeOutputs, null, 2)
       }
-      
-      // Use the previous node's output if available, otherwise use all outputs
-      const dataToSave = previousOutput !== undefined && previousOutput !== null 
-        ? safeStringify(previousOutput) 
-        : safeStringify(context.nodeOutputs)
       
       return { output: { filename, format, data: dataToSave, pdfGenerated: true } }
     }
