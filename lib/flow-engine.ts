@@ -179,10 +179,35 @@ async function executeNode(
 
       try {
         const { generateText } = await import("ai")
-        const { deepseek: ds } = await import("@ai-sdk/deepseek")
+        const { deepseek } = await import("@ai-sdk/deepseek")
+        const { openai, createOpenAI } = await import("@ai-sdk/openai")
+        const { google } = await import("@ai-sdk/google")
+
+        let modelProvider
+        if (model.startsWith("openrouter/")) {
+          const openrouterModel = model.replace("openrouter/", "")
+          const apiKey = process.env.OPENROUTER_API_KEY
+          if (!apiKey) {
+            throw new Error("OPENROUTER_API_KEY is not configured")
+          }
+          modelProvider = createOpenAI({
+            apiKey,
+            baseURL: "https://openrouter.ai/api/v1",
+            headers: {
+              "HTTP-Referer": "https://github.com/flow-builder-ai",
+              "X-Title": "Flow Builder AI",
+            },
+          })(openrouterModel)
+        } else if (model.startsWith("gemini-")) {
+          modelProvider = google(model)
+        } else if (model.startsWith("gpt-") || model.startsWith("o1-")) {
+          modelProvider = openai(model)
+        } else {
+          modelProvider = deepseek(model)
+        }
 
         const response = await generateText({
-          model: ds(model),
+          model: modelProvider,
           system: systemPrompt || undefined,
           prompt: prompt,
         })

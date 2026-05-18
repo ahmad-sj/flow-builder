@@ -1,5 +1,7 @@
 import { streamText, convertToModelMessages, tool, stepCountIs } from "ai";
 import { deepseek } from "@ai-sdk/deepseek";
+import { openai, createOpenAI } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { sql } from "@/lib/db";
@@ -255,7 +257,13 @@ export async function POST(req: Request) {
     });
   }
 
-  const { messages, flowId, currentNodes, currentEdges } = await req.json();
+  const {
+    messages,
+    flowId,
+    currentNodes,
+    currentEdges,
+    model: selectedModel,
+  } = await req.json();
 
   const userId = session.user.id;
 
@@ -271,8 +279,48 @@ CRITICAL: You are INSIDE this flow. You must use "addNode" and "addEdge" with th
 NEVER call createFlow — the flow already exists. Always modify the current flow.`
     : `No flow is currently open. If the user asks to create nodes or edges, call createFlow first to create a new flow, then use the returned flowId.`;
 
+// Determine the model to use
+  let chatModel
+  console.log('Selected model from body:', selectedModel)
+  
+  if (selectedModel === "deepseek-chat" || !selectedModel) {
+    chatModel = deepseek("deepseek-chat")
+  } else if (selectedModel === "gpt-4o") {
+    chatModel = openai("gpt-4o")
+  } else if (selectedModel === "gpt-4o-mini") {
+    chatModel = openai("gpt-4o-mini")
+  } else if (selectedModel === "gemini-2.0-flash" || selectedModel === "gemini-1.5-flash") {
+    const geminiApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY
+    if (!geminiApiKey) {
+      return new Response(JSON.stringify({ error: "GOOGLE_GENERATIVE_AI_API_KEY is not configured" }), {
+        status: 500,
+      });
+    }
+    chatModel = google(selectedModel)
+  } else if (selectedModel === "openrouter" || (typeof selectedModel === "string" && selectedModel.startsWith("openrouter/"))) {
+    const openrouterApiKey = process.env.OPENROUTER_API_KEY
+    if (!openrouterApiKey) {
+      return new Response(JSON.stringify({ error: "OPENROUTER_API_KEY is not configured" }), {
+        status: 500,
+      });
+    }
+    const modelName = selectedModel === "openrouter" ? "openai/gpt-4o" : selectedModel.replace("openrouter/", "")
+    console.log('Using OpenRouter model:', modelName)
+    chatModel = createOpenAI({
+      apiKey: openrouterApiKey,
+      baseURL: "https://openrouter.ai/api/v1",
+      headers: {
+        "HTTP-Referer": "https://github.com/flow-builder-ai",
+        "X-Title": "Flow Builder AI",
+      },
+    })(modelName)
+  } else {
+    // Fallback to default
+    chatModel = deepseek("deepseek-chat")
+  }
+
   const result = streamText({
-    model: deepseek("deepseek-chat"),
+    model: chatModel,
     system: `You are FlowBuilder AI, an intelligent assistant that helps users build and manage workflow automations.
 
 You can:

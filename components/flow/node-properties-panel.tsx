@@ -1,31 +1,46 @@
-'use client'
+"use client";
 
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { type FlowNode, type NodeType } from '@/lib/flow-types'
-import { X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { type FlowNode, type NodeType } from "@/lib/flow-types";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface NodePropertiesPanelProps {
-  node: FlowNode | null
-  onUpdate: (nodeId: string, data: Record<string, unknown>) => void
-  onClose: () => void
+  node: FlowNode | null;
+  onUpdate: (nodeId: string, data: Record<string, unknown>) => void;
+  onClose: () => void;
 }
 
-export function NodePropertiesPanel({ node, onUpdate, onClose }: NodePropertiesPanelProps) {
-  if (!node) return null
+export function NodePropertiesPanel({
+  node,
+  onUpdate,
+  onClose,
+}: NodePropertiesPanelProps) {
+  if (!node) return null;
 
   const handleChange = (key: string, value: unknown) => {
-    onUpdate(node.id, { ...node.data, [key]: value })
-  }
+    onUpdate(node.id, { ...node.data, [key]: value });
+  };
 
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Node Properties</h3>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={onClose}
+        >
           <X className="h-4 w-4" />
         </Button>
       </div>
@@ -35,8 +50,8 @@ export function NodePropertiesPanel({ node, onUpdate, onClose }: NodePropertiesP
           <Label htmlFor="label">Label</Label>
           <Input
             id="label"
-            value={(node.data.label as string) || ''}
-            onChange={(e) => handleChange('label', e.target.value)}
+            value={(node.data.label as string) || ""}
+            onChange={(e) => handleChange("label", e.target.value)}
           />
         </div>
 
@@ -44,8 +59,8 @@ export function NodePropertiesPanel({ node, onUpdate, onClose }: NodePropertiesP
           <Label htmlFor="description">Description</Label>
           <Textarea
             id="description"
-            value={(node.data.description as string) || ''}
-            onChange={(e) => handleChange('description', e.target.value)}
+            value={(node.data.description as string) || ""}
+            onChange={(e) => handleChange("description", e.target.value)}
             rows={2}
           />
         </div>
@@ -53,23 +68,23 @@ export function NodePropertiesPanel({ node, onUpdate, onClose }: NodePropertiesP
         {renderNodeSpecificFields(node, handleChange)}
       </div>
     </div>
-  )
+  );
 }
 
 function renderNodeSpecificFields(
   node: FlowNode,
-  handleChange: (key: string, value: unknown) => void
+  handleChange: (key: string, value: unknown) => void,
 ) {
-  const nodeType = node.type as NodeType
+  const nodeType = node.type as NodeType;
 
   switch (nodeType) {
-    case 'trigger':
+    case "trigger":
       return (
         <div className="space-y-2">
           <Label htmlFor="triggerType">Trigger Type</Label>
           <Select
-            value={(node.data.triggerType as string) || 'manual'}
-            onValueChange={(value) => handleChange('triggerType', value)}
+            value={(node.data.triggerType as string) || "manual"}
+            onValueChange={(value) => handleChange("triggerType", value)}
           >
             <SelectTrigger>
               <SelectValue />
@@ -80,28 +95,28 @@ function renderNodeSpecificFields(
               <SelectItem value="webhook">Webhook</SelectItem>
             </SelectContent>
           </Select>
-          {node.data.triggerType === 'schedule' && (
+          {node.data.triggerType === "schedule" && (
             <div className="space-y-2 mt-2">
               <Label htmlFor="schedule">Cron Expression</Label>
               <Input
                 id="schedule"
-                value={(node.data.schedule as string) || ''}
-                onChange={(e) => handleChange('schedule', e.target.value)}
+                value={(node.data.schedule as string) || ""}
+                onChange={(e) => handleChange("schedule", e.target.value)}
                 placeholder="0 * * * *"
               />
             </div>
           )}
         </div>
-      )
+      );
 
-    case 'http_request':
+    case "http_request":
       return (
         <>
           <div className="space-y-2">
             <Label htmlFor="method">Method</Label>
             <Select
-              value={(node.data.method as string) || 'GET'}
-              onValueChange={(value) => handleChange('method', value)}
+              value={(node.data.method as string) || "GET"}
+              onValueChange={(value) => handleChange("method", value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -119,8 +134,8 @@ function renderNodeSpecificFields(
             <Label htmlFor="url">URL</Label>
             <Input
               id="url"
-              value={(node.data.url as string) || ''}
-              onChange={(e) => handleChange('url', e.target.value)}
+              value={(node.data.url as string) || ""}
+              onChange={(e) => handleChange("url", e.target.value)}
               placeholder="https://api.example.com/endpoint"
             />
           </div>
@@ -128,24 +143,24 @@ function renderNodeSpecificFields(
             <Label htmlFor="body">Request Body (JSON)</Label>
             <Textarea
               id="body"
-              value={(node.data.body as string) || ''}
-              onChange={(e) => handleChange('body', e.target.value)}
+              value={(node.data.body as string) || ""}
+              onChange={(e) => handleChange("body", e.target.value)}
               rows={4}
               className="font-mono text-sm"
               placeholder='{"key": "value"}'
             />
           </div>
         </>
-      )
+      );
 
-    case 'code_runner':
+    case "code_runner":
       return (
         <>
           <div className="space-y-2">
             <Label htmlFor="language">Language</Label>
             <Select
-              value={(node.data.language as string) || 'javascript'}
-              onValueChange={(value) => handleChange('language', value)}
+              value={(node.data.language as string) || "javascript"}
+              onValueChange={(value) => handleChange("language", value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -160,25 +175,25 @@ function renderNodeSpecificFields(
             <Label htmlFor="code">Code</Label>
             <Textarea
               id="code"
-              value={(node.data.code as string) || ''}
-              onChange={(e) => handleChange('code', e.target.value)}
+              value={(node.data.code as string) || ""}
+              onChange={(e) => handleChange("code", e.target.value)}
               rows={8}
               className="font-mono text-sm"
               placeholder="// Your code here"
             />
           </div>
         </>
-      )
+      );
 
-    case 'condition':
+    case "condition":
       return (
         <>
           <div className="space-y-2">
             <Label htmlFor="condition">Condition Expression</Label>
             <Textarea
               id="condition"
-              value={(node.data.condition as string) || ''}
-              onChange={(e) => handleChange('condition', e.target.value)}
+              value={(node.data.condition as string) || ""}
+              onChange={(e) => handleChange("condition", e.target.value)}
               rows={3}
               className="font-mono text-sm"
               placeholder="input.value > 10"
@@ -189,55 +204,65 @@ function renderNodeSpecificFields(
               <Label htmlFor="trueLabel">True Label</Label>
               <Input
                 id="trueLabel"
-                value={(node.data.trueLabel as string) || 'True'}
-                onChange={(e) => handleChange('trueLabel', e.target.value)}
+                value={(node.data.trueLabel as string) || "True"}
+                onChange={(e) => handleChange("trueLabel", e.target.value)}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="falseLabel">False Label</Label>
               <Input
                 id="falseLabel"
-                value={(node.data.falseLabel as string) || 'False'}
-                onChange={(e) => handleChange('falseLabel', e.target.value)}
+                value={(node.data.falseLabel as string) || "False"}
+                onChange={(e) => handleChange("falseLabel", e.target.value)}
               />
             </div>
           </div>
         </>
-      )
+      );
 
-    case 'llm_call':
+    case "llm_call":
       return (
         <>
           <div className="space-y-2">
             <Label htmlFor="model">Model</Label>
             <Select
-              value={(node.data.model as string) || 'deepseek-v4-flash'}
-              onValueChange={(value) => handleChange('model', value)}
+              value={(node.data.model as string) || "deepseek-v4-flash"}
+              onValueChange={(value) => handleChange("model", value)}
             >
               <SelectTrigger>
-                <SelectValue defaultValue={'deepseek-v4-flash'}/>
+                <SelectValue defaultValue={"deepseek-v4-flash"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="deepseek-v4-flash">DeepSeek Flash</SelectItem>                
-                <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
-                <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
-                <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                <SelectItem value="deepseek-v4-flash">
+                  DeepSeek Flash
+                </SelectItem>
+                <SelectItem value="deepseek-chat">DeepSeek Chat</SelectItem>
+                <SelectItem value="openrouter/openai/gpt-oss-120b:free">
+                  OR: GPT-OSS-120B
+                </SelectItem>
+                <SelectItem value="openrouter/deepseek/deepseek-v4-flash:free">
+                  OpenRouter: DeepSeek v4 Flash
+                </SelectItem>
+                <SelectItem value="openrouter/poolside/laguna-m.1:free">
+                  OpenRouter: Laguna M.1
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="outputFormat">Output Format</Label>
             <Select
-              value={(node.data.outputFormat as string) || 'text'}
-              onValueChange={(value) => handleChange('outputFormat', value)}
+              value={(node.data.outputFormat as string) || "text"}
+              onValueChange={(value) => handleChange("outputFormat", value)}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="text">Plain Text</SelectItem>
-                <SelectItem value="webpage">HTML Web Page (Clean Report)</SelectItem>
+                <SelectItem value="webpage">
+                  HTML Web Page (Clean Report)
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -245,8 +270,8 @@ function renderNodeSpecificFields(
             <Label htmlFor="systemPrompt">System Prompt</Label>
             <Textarea
               id="systemPrompt"
-              value={(node.data.systemPrompt as string) || ''}
-              onChange={(e) => handleChange('systemPrompt', e.target.value)}
+              value={(node.data.systemPrompt as string) || ""}
+              onChange={(e) => handleChange("systemPrompt", e.target.value)}
               rows={3}
               placeholder="You are a helpful assistant..."
             />
@@ -255,8 +280,8 @@ function renderNodeSpecificFields(
             <Label htmlFor="prompt">Prompt Template</Label>
             <Textarea
               id="prompt"
-              value={(node.data.prompt as string) || ''}
-              onChange={(e) => handleChange('prompt', e.target.value)}
+              value={(node.data.prompt as string) || ""}
+              onChange={(e) => handleChange("prompt", e.target.value)}
               rows={4}
               placeholder="Analyze the following: {{input}}"
             />
@@ -271,7 +296,9 @@ function renderNodeSpecificFields(
                 max={2}
                 step={0.1}
                 value={(node.data.temperature as number) || 0.7}
-                onChange={(e) => handleChange('temperature', parseFloat(e.target.value))}
+                onChange={(e) =>
+                  handleChange("temperature", parseFloat(e.target.value))
+                }
               />
             </div>
             <div className="space-y-2">
@@ -282,21 +309,23 @@ function renderNodeSpecificFields(
                 min={1}
                 max={4096}
                 value={(node.data.maxTokens as number) || 1024}
-                onChange={(e) => handleChange('maxTokens', parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleChange("maxTokens", parseInt(e.target.value))
+                }
               />
             </div>
           </div>
         </>
-      )
+      );
 
-case 'webhook':
+    case "webhook":
       return (
         <>
           <div className="space-y-2">
             <Label htmlFor="webhookMethod">Method</Label>
             <Select
-              value={(node.data.method as string) || 'POST'}
-              onValueChange={(value) => handleChange('method', value)}
+              value={(node.data.method as string) || "POST"}
+              onValueChange={(value) => handleChange("method", value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -313,16 +342,16 @@ case 'webhook':
             <Label htmlFor="path">Webhook Path</Label>
             <Input
               id="path"
-              value={(node.data.path as string) || ''}
-              onChange={(e) => handleChange('path', e.target.value)}
+              value={(node.data.path as string) || ""}
+              onChange={(e) => handleChange("path", e.target.value)}
               placeholder="/webhook/my-endpoint"
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="responseType">Response Type</Label>
             <Select
-              value={(node.data.responseType as string) || 'json'}
-              onValueChange={(value) => handleChange('responseType', value)}
+              value={(node.data.responseType as string) || "json"}
+              onValueChange={(value) => handleChange("responseType", value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -334,66 +363,79 @@ case 'webhook':
             </Select>
           </div>
         </>
-      )
+      );
 
-case 'log':
+    case "log":
       return (
         <div className="space-y-2">
           <Label htmlFor="prefix">Prefix (optional)</Label>
           <Input
             id="prefix"
-            value={(node.data.prefix as string) || ''}
-            onChange={(e) => handleChange('prefix', e.target.value)}
+            value={(node.data.prefix as string) || ""}
+            onChange={(e) => handleChange("prefix", e.target.value)}
             placeholder="Log prefix..."
           />
         </div>
-      )
+      );
 
-    case 'color':
+    case "color":
       return (
         <div className="space-y-2">
           <Label htmlFor="prefix">Prefix (optional)</Label>
           <Input
             id="prefix"
-            value={(node.data.prefix as string) || ''}
-            onChange={(e) => handleChange('prefix', e.target.value)}
+            value={(node.data.prefix as string) || ""}
+            onChange={(e) => handleChange("prefix", e.target.value)}
             placeholder="Color output prefix..."
           />
         </div>
-      )
+      );
 
-    case 'save_pdf':
+    case "save_pdf":
       return (
         <>
           <div className="space-y-2">
             <Label htmlFor="filename">Filename</Label>
             <Input
               id="filename"
-              value={(node.data.filename as string) || 'output.pdf'}
-              onChange={(e) => handleChange('filename', e.target.value)}
+              value={(node.data.filename as string) || "output.pdf"}
+              onChange={(e) => handleChange("filename", e.target.value)}
               placeholder="output.pdf"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="format">Page Format</Label>
+<div className="space-y-2">
+            <Label htmlFor="model">Model</Label>
             <Select
-              value={(node.data.format as string) || 'A4'}
-              onValueChange={(value) => handleChange('format', value)}
+              value={(node.data.model as string) || 'deepseek-v4-flash'}
+              onValueChange={(value) => handleChange('model', value)}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue defaultValue={'deepseek-v4-flash'}/>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="A4">A4</SelectItem>
-                <SelectItem value="Letter">Letter</SelectItem>
-                <SelectItem value="Legal">Legal</SelectItem>
+                <SelectItem value="deepseek-v4-flash">DeepSeek Flash</SelectItem>
+                <SelectItem value="deepseek-chat">DeepSeek Chat</SelectItem>
+                <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash</SelectItem>
+                <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
+                <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
+                <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                <SelectItem value="claude-3-5-sonnet">Claude 3.5 Sonnet</SelectItem>
+                <SelectItem value="claude-3-5-opus">Claude 3.5 Opus</SelectItem>
+                <SelectItem value="openrouter/openai/gpt-4o">OpenRouter: GPT-4o</SelectItem>
+                <SelectItem value="openrouter/openai/gpt-4o-mini">OpenRouter: GPT-4o Mini</SelectItem>
+                <SelectItem value="openrouter/anthropic/claude-3-5-sonnet">OpenRouter: Claude 3.5 Sonnet</SelectItem>
+                <SelectItem value="openrouter/anthropic/claude-3-7-sonnet">OpenRouter: Claude 3.7 Sonnet</SelectItem>
+                <SelectItem value="openrouter/google/gemini-2.0-flash-exp">OpenRouter: Gemini 2.0 Flash</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </>
-      )
+      );
 
     default:
-      return null
+      return null;
   }
 }
